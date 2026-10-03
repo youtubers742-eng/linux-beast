@@ -1,0 +1,441 @@
+name: Nexora
+
+on:
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: 'Kitne ghante chalega'
+        required: false
+        default: '5'
+        type: choice
+        options: ['1', '2', '3', '4', '5']
+      gpu:
+        description: 'Kaggle GPU brain (32GB) — sabse tez, free'
+        required: false
+        default: true
+        type: boolean
+      model:
+        description: 'GPU par kaunsa model chalega'
+        required: false
+        default: 'qwen2.5-coder:32b'
+        type: string
+      ollama:
+        description: 'Local backup brain (CPU — slow)'
+        required: false
+        default: 'none'
+        type: choice
+        options: ['none', 'small']
+
+jobs:
+  nexora:
+    runs-on: windows-latest
+    timeout-minutes: 355
+
+    env:
+      TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
+      GROQ_API_KEY:       ${{ secrets.GROQ_API_KEY }}
+      CEREBRAS_API_KEY:   ${{ secrets.CEREBRAS_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      GEMINI_API_KEY:     ${{ secrets.GEMINI_API_KEY }}
+      KAGGLE_USERNAME:    ${{ secrets.KAGGLE_USERNAME }}
+      KAGGLE_KEY:         ${{ secrets.KAGGLE_KEY }}
+      NX_HOURS:  ${{ github.event.inputs.hours }}
+      NX_GPU:    ${{ github.event.inputs.gpu }}
+      NX_MODEL:  ${{ github.event.inputs.model }}
+      NX_OLLAMA: ${{ github.event.inputs.ollama }}
+      NX_ROOT:   ${{ github.workspace }}\nexora
+
+    steps:
+      - name: '[1/9] Machine info'
+        shell: bash
+        run: |
+          echo "=== NEXORA ==="
+          systeminfo | grep -E "^OS Name|Total Physical Memory" || true
+          nproc || echo "cores: $NUMBER_OF_PROCESSORS"
+          python --version
+          mkdir -p "$NX_ROOT"
+          cd "$NX_ROOT"
+          mkdir -p workspace data profile logs
+
+      - name: '[2/9] Python packages'
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip -q
+          python -m pip install -q playwright kaggle 2>&1 | tail -5
+          echo "packages done"
+
+      - name: '[3/9] Chromium (agent ka browser)'
+        shell: bash
+        run: |
+          python -m playwright install chromium 2>&1 | tail -6
+          python - <<'PY'
+          try:
+              from playwright.sync_api import sync_playwright
+              with sync_playwright() as p:
+                  print("CHROME=" + p.chromium.executable_path)
+          except Exception as e:
+              print("chrome lookup:", e)
+          PY
+
+      - name: '[4/9] Tailscale (private IP)'
+        shell: bash
+        run: |
+          TS="/c/Program Files/Tailscale/tailscale.exe"
+          if [ -n "$TAILSCALE_AUTH_KEY" ]; then
+            if [ ! -f "$TS" ]; then
+              echo "installing tailscale..."
+              curl -sL -o ts.msi https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.msi
+              MSYS_NO_PATHCONV=1 msiexec /i ts.msi /quiet /norestart || true
+              sleep 12
+            fi
+            if [ -f "$TS" ]; then
+              "$TS" up --authkey="$TAILSCALE_AUTH_KEY" --hostname=nexora-pc --accept-routes --unattended || true
+              sleep 6
+              "$TS" ip -4 > ts_ip.txt 2>/dev/null || true
+              echo "TAILSCALE_IP=$(cat ts_ip.txt 2>/dev/null)"
+            else
+              echo "TAILSCALE: install fail (cloud link abhi bhi kaam karega)"
+            fi
+          else
+            echo "TAILSCALE: koi key nahi (cloud link abhi bhi kaam karega)"
+          fi
+
+      - name: '[5/9] Firewall allow'
+        shell: bash
+        run: |
+          MSYS_NO_PATHCONV=1 netsh advfirewall firewall add rule name="Nexora" dir=in action=allow protocol=TCP localport=8000 >/dev/null 2>&1 || true
+          echo "firewall ok"
+
+      - name: '[6/9] Kaggle GPU brain (32 GB)'
+        shell: bash
+        run: |
+          cd "$NX_ROOT"
+          if [ "$NX_GPU" != "true" ] || [ -z "$KAGGLE_USERNAME" ] || [ -z "$KAGGLE_KEY" ]; then
+            echo "GPU brain skipped (free API + local brain kaafi hai)"; exit 0
+          fi
+          python -m pip install -q kaggle 2>&1 | tail -2
+          mkdir -p "$HOME/.kaggle" kaggle_kernel
+          printf '{"username":"%s","key":"%s"}' "$KAGGLE_USERNAME" "$KAGGLE_KEY" > "$HOME/.kaggle/kaggle.json"
+          chmod 600 "$HOME/.kaggle/kaggle.json" 2>/dev/null || true
+
+                    cat > kaggle_kernel/kernel-metadata.json <<'KMEOF'
+          {
+            "id": "%%USER%%/nexora-gpu-brain",
+            "title": "NEXORA GPU Brain",
+            "code_file": "nexora-gpu.ipynb",
+            "language": "python",
+            "kernel_type": "notebook",
+            "is_private": true,
+            "enable_gpu": true,
+            "enable_tpu": false,
+            "enable_internet": true,
+            "dataset_sources": [],
+            "competition_sources": [],
+            "kernel_sources": []
+          }
+          KMEOF
+
+          cat > kaggle_kernel/nexora-gpu.ipynb.tpl <<'NTEOF'
+          import os, sys, time, subprocess, json, threading, urllib.request
+          print("NEXORA GPU brain starting...")
+          KEY = "%%KEY%%"
+          MODEL = "%%MODEL%%"
+          def sh(c, t=900):
+              print("$", c); r = subprocess.run(c, shell=True, capture_output=True, text=True, timeout=t)
+              print((r.stdout or "")[-3000:]); print((r.stderr or "")[-1500:]); return r.returncode
+
+          # ---- Tailscale (userspace mode — TUN device ki zaroorat nahi) ----
+          sh("curl -fsSL https://tailscale.com/install.sh | sh", 600)
+          subprocess.Popen("tailscaled --tun=userspace-networking --socket=/tmp/ts.sock --state=/tmp/ts.state",
+                           shell=True, start_new_session=True)
+          time.sleep(5)
+          sh(f"tailscale --socket=/tmp/ts.sock up --authkey={KEY} --hostname=nexora-gpu --accept-routes", 180)
+          for i in range(10):
+              r = subprocess.run("tailscale --socket=/tmp/ts.sock ip -4", shell=True, capture_output=True, text=True)
+              ip = (r.stdout or "").strip().split("\n")[0]
+              if ip.startswith("100."):
+                  print("TAILSCALE_IP=" + ip); break
+              time.sleep(3)
+          else:
+              ip = "(none)"
+          print("MY_IP=" + ip)
+
+          # ---- Ollama ----
+          sh("curl -fsSL https://ollama.com/install.sh | sh", 900)
+          env = dict(os.environ); env["OLLAMA_HOST"] = "0.0.0.0:11434"
+          subprocess.Popen("ollama serve", shell=True, env=env, start_new_session=True)
+          time.sleep(12)
+          for attempt, m in enumerate([MODEL, "qwen2.5-coder:14b", "qwen2.5-coder:7b"]):
+              print("pulling", m)
+              if sh(f"ollama pull {m}", 3600) == 0:
+                  MODEL = m; break
+
+          def alive():
+              while True:
+                  try:
+                      urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=5)
+                  except Exception:
+                      pass
+                  time.sleep(30)
+          threading.Thread(target=alive, daemon=True).start()
+
+          print("=== NEXORA GPU BRAIN READY ===", MODEL, ip)
+          t0 = time.time()
+          while time.time() - t0 < 11 * 3600:
+              time.sleep(60)
+              print("heartbeat", int(time.time() - t0), "s")
+          NTEOF
+
+          python - <<'PY'
+          import json, os
+
+          # kernel id must carry the REAL kaggle username
+          km = open("kaggle_kernel/kernel-metadata.json", encoding="utf-8").read()
+          km = km.replace("%%USER%%", os.environ.get("KAGGLE_USERNAME", "me"))
+          open("kaggle_kernel/kernel-metadata.json", "w").write(km)
+
+          tpl = open("kaggle_kernel/nexora-gpu.ipynb.tpl", encoding="utf-8").read()
+          src = tpl.replace("%%KEY%%", os.environ.get("TAILSCALE_AUTH_KEY", ""))
+          src = src.replace("%%MODEL%%", os.environ.get("NX_MODEL", "qwen2.5-coder:32b"))
+          nb = {"cells": [{"cell_type": "code", "execution_count": None, "metadata": {},
+                           "outputs": [], "source": src.splitlines(keepends=True)}],
+                "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+                             "language_info": {"name": "python"}},
+                "nbformat": 4, "nbformat_minor": 4}
+          json.dump(nb, open("kaggle_kernel/nexora-gpu.ipynb", "w"))
+          print("notebook built")
+          PY
+
+          python -m kaggle kernels push -p kaggle_kernel 2>&1 | tail -8 || echo "kaggle push fail — aage badh rahe hain"
+
+          cat > getip.py <<'PY'
+          import sys, json
+          try:
+              d = json.load(sys.stdin)
+              ps = (d.get('Peer') or {})
+              v = ps.values() if isinstance(ps, dict) else ps
+              for p in v:
+                  if 'nexora-gpu' in str(p.get('HostName', '')):
+                      ips = p.get('TailscaleIPs') or []
+                      if ips:
+                          print(ips[0]); break
+          except Exception:
+              pass
+          PY
+
+          echo "GPU node ka wait (max 25 min)..."
+          TS="/c/Program Files/Tailscale/tailscale.exe"
+          KIP=""
+          for i in $(seq 1 75); do
+            if [ -f "$TS" ]; then
+              KIP=$("$TS" status --json 2>/dev/null | python getip.py)
+            fi
+            if [ -n "$KIP" ]; then break; fi
+            sleep 20
+          done
+          if [ -n "$KIP" ]; then
+            for j in $(seq 1 40); do
+              if curl -s --max-time 5 "http://$KIP:11434/api/tags" | grep -q models; then
+                echo "$KIP" > "$NX_ROOT/data/kaggle_ip.txt"
+                echo "GPU BRAIN READY -> $KIP"
+                exit 0
+              fi
+              sleep 20
+            done
+          fi
+          echo "GPU brain time par nahi aaya — free API + local brain use hoga"
+        continue-on-error: true
+
+      - name: '[7/9] Local Ollama backup'
+        shell: bash
+        run: |
+          if [ "$NX_OLLAMA" = "small" ]; then
+            curl -sL -o ollama.zip https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip
+            python -c "import zipfile;zipfile.ZipFile('ollama.zip').extractall('ollama')"
+            OLLAMA_HOST=0.0.0.0:11434 nohup ./ollama/ollama.exe serve > ollama.log 2>&1 &
+            sleep 20
+            ./ollama/ollama.exe pull qwen2.5-coder:7b 2>&1 | tail -3 || echo "pull fail"
+          else
+            echo "local ollama off"
+          fi
+        continue-on-error: true
+
+      - name: '[8/9] NEXORA files likho'
+        shell: bash
+        run: |
+          cd "$NX_ROOT"
+          cat > nexora_app.py <<'NXAPPEOF'
+          #!/usr/bin/env python3
+          # -*- coding: utf-8 -*-
+          """
+          NEXORA - ek aisa AI agent jiske paas apna computer hai.
+          Single file. Python 3.9+. Sirf stdlib (browser ke liye Playwright ka chromium binary).
+          """
+          import os, sys, json, time, re, io, base64, struct, socket, ssl, shutil, zipfile
+          import threading, subprocess, traceback, uuid, random, string, mimetypes, argparse
+          import urllib.parse, urllib.request, urllib.error
+          from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+          from socketserver import ThreadingMixIn
+          from pathlib import Path
+          from datetime import datetime
+          from collections import deque
+          import queue as _queue
+
+          VER = "1.0.0"
+          ROOT = Path(os.environ.get("NEXORA_ROOT", ".")).resolve()
+          for d in ("workspace", "data", "profile", "logs"):
+              (ROOT / d).mkdir(parents=True, exist_ok=True)
+          WS, DATA, PROF, LOGS = ROOT/"workspace", ROOT/"data", ROOT/"profile", ROOT/"logs"
+          PORT = int(os.environ.get("NEXORA_PORT", "8000"))
+
+          # ─────────────────────────── tiny logger ───────────────────────────
+          _lock = threading.RLock()
+          def log(msg, kind="info"):
+              line = f"[{datetime.now().strftime('%H:%M:%S')}] [{kind}] {msg}"
+              try:
+                  print(line, flush=True)
+                  with open(LOGS/"nexora.log", "a", encoding="utf-8") as f:
+                      f.write(line + "\n")
+              except Exception:
+                  pass
+
+          # ─────────────────────────── state ───────────────────────────
+          STATE = {
+              "bots": [], "chats": [], "chat": None, "approvals": [],
+              "log": [], "settings": {}, "brain": [], "tasks": {}, "net": {},
+          }
+          BUS = deque(maxlen=400)          # SSE event bus
+          _SUBS = []
+          MAX_LOG = 400
+
+          DEFAULT_BOTS = [
+              dict(id="atlas", name="ATLAS", emoji="🛠️", color="#e8b96a", role="coder",
+                   desc="Code likhta hai, app banata hai, bug fix karta hai",
+                   system="You are ATLAS, an elite software engineer inside NEXORA. You have a real computer. "
+                          "Write complete, working code. Test it. Prefer creating a single self-contained HTML file "
+                          "for UI work and save it to the workspace, then call create_artifact with its path."),
+              dict(id="scout", name="SCOUT", emoji="🔭", color="#5fbfae", role="research",
+                   desc="Web khojta hai, report banata hai",
+                   system="You are SCOUT, a deep researcher inside NEXORA. Use web_search and browser tools. "
+                          "Always cite sources with real URLs. Produce structured reports. Save the report to the workspace."),
+              dict(id="scribe", name="SCRIBE", emoji="✍️", color="#9b8ec9", role="writer",
+                   desc="Email, blog, docs, content",
+                   system="You are SCRIBE, a world-class writer inside NEXORA. Write in the user's language "
+                          "(Hindi/Hinglish if they write that). Save long documents to the workspace."),
+              dict(id="coda", name="CODA", emoji="📊", color="#7fc08a", role="data",
+                   desc="CSV, charts, analysis",
+                   system="You are CODA, a data analyst inside NEXORA. Use python tool for analysis. "
+                          "Produce charts as self-contained HTML. Save outputs to the workspace."),
+              dict(id="pilot", name="PILOT", emoji="🎮", color="#e2736b", role="browser",
+                   desc="Websites pe kaam — form, login, scraping",
+                   system="You are PILOT, a browser operator inside NEXORA. Drive the real browser: open, click, type. "
+                          "If a login or CAPTCHA appears, call request_takeover and wait."),
+          ]
+
+          DEFAULT_SETTINGS = {
+              "model": "auto", "temperature": 0.3, "max_steps": 40,
+              "brain_order": ["kaggle", "groq", "cerebras", "openrouter", "gemini", "local"],
+              "auto_approve": {"read_file": True, "list_files": True, "browser_open": True,
+                               "browser_click": True, "browser_type": True, "browser_scroll": True,
+                               "browser_extract": True, "browser_screenshot": True, "web_search": True,
+                               "write_file": True, "create_artifact": True,
+                               "shell": False, "python": False, "delete": False},
+              "memory": [], "theme": "dark", "lang": "auto",
+              "stream": True, "speak": False, "screencast_fps": 8,
+              "save_browser_profile": True, "show_plan": True, "show_tools": True,
+              "kaggle_model": "qwen2.5-coder:32b", "local_model": "qwen2.5-coder:7b",
+          }
+
+          def save_state():
+              try:
+                  with _lock:
+                      (DATA/"state.json").write_text(json.dumps(
+                          {k: STATE[k] for k in ("bots","chats","chat","settings")},
+                          ensure_ascii=False, indent=1), encoding="utf-8")
+              except Exception as e:
+                  log(f"save_state: {e}", "warn")
+
+          def load_state():
+              p = DATA/"state.json"
+              if p.exists():
+                  try:
+                      d = json.loads(p.read_text(encoding="utf-8"))
+                      for k in ("bots", "chats", "chat", "settings"):
+                          if k in d: STATE[k] = d[k]
+                  except Exception as e:
+                      log(f"load_state: {e}", "warn")
+              if not STATE["bots"]: STATE["bots"] = [dict(b) for b in DEFAULT_BOTS]
+              s = dict(DEFAULT_SETTINGS); s.update(STATE.get("settings") or {}); STATE["settings"] = s
+              for b in STATE["bots"]:
+                  b.setdefault("emoji", "🤖"); b.setdefault("color", "#e8b96a"); b.setdefault("desc", "")
+                  b.setdefault("role", "general"); b.setdefault("system", "You are a helpful agent inside NEXORA.")
+
+          load_state()
+
+          def push(evt, data=None):
+              """SSE broadcast"""
+              msg = {"evt": evt, "data": data, "ts": time.time()}
+              BUS.append(msg)
+              for q in list(_SUBS):
+                  try: q.put_nowait(msg)
+                  except Exception: pass
+
+          def alog(text, kind="info"):
+              STATE["log"].append({"ts": time.time(), "text": text, "kind": kind})
+              if len(STATE["log"]) > MAX_LOG: STATE["log"] = STATE["log"][-MAX_LOG:]
+              push("log", {"text": text, "kind": kind})
+
+          # ─────────────────────────── minimal websocket client (stdlib) ───────────────────────────
+          class CDPWs:
+              def __init__(self, url, timeout=20):
+                  u = urllib.parse.urlparse(url)
+                  self.sock = socket.create_connection((u.hostname, u.port or 80), timeout=timeout)
+                  key = base64.b64encode(os.urandom(16)).decode()
+                  path = u.path or "/"
+                  if u.query: path += "?" + u.query
+                  req = (f"GET {path} HTTP/1.1\r\nHost: {u.hostname}:{u.port or 80}\r\n"
+                         f"Upgrade: websocket\r\nConnection: Upgrade\r\n"
+                         f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n")
+                  self.sock.sendall(req.encode())
+                  buf = b""
+                  while b"\r\n\r\n" not in buf:
+                      c = self.sock.recv(4096)
+                      if not c: raise RuntimeError("ws handshake closed")
+                      buf += c
+                  if b"101" not in buf.split(b"\r\n")[0]:
+                      raise RuntimeError("ws upgrade failed: " + buf[:120].decode("utf-8", "ignore"))
+                  self.buf = buf.split(b"\r\n\r\n", 1)[1]
+                  self.sock.settimeout(timeout)
+                  self._id = 0
+                  self._lock = threading.Lock()
+                  self._resp = {}
+                  self._evt = []
+                  self.alive = True
+                  threading.Thread(target=self._reader, daemon=True).start()
+
+              # ---- framing ----
+              def _read(self, n):
+                  while len(self.buf) < n:
+                      c = self.sock.recv(65536)
+                      if not c: raise RuntimeError("ws closed")
+                      self.buf += c
+                  d, self.buf = self.buf[:n], self.buf[n:]
+                  return d
+
+              def _send(self, opcode, payload):
+                  hdr = bytearray([0x80 | opcode])
+                  n = len(payload)
+                  mask = os.urandom(4)
+                  if n < 126: hdr.append(0x80 | n)
+                  elif n < 65536: hdr.append(0x80 | 126); hdr += struct.pack(">H", n)
+                  else: hdr.append(0x80 | 127); hdr += struct.pack(">Q", n)
+                  hdr += mask
+                  masked = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
+                  self.sock.sendall(bytes(hdr) + masked)
+
+              def _recv_frame(self):
+                  b0, b1 = self._read(2)
+                  fin, op = b0 & 0x80, b0 & 0x0F
+                  ln = b1 & 0x7F
+                  if ln == 126: ln = struct.unpack(">H", self._read(2))[0]
+         
