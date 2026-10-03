@@ -1,0 +1,351 @@
+# ============================================================
+#  🐧 LINUX BEAST — next level Linux box (ek file, koi aur file nahi chahiye)
+# ============================================================
+#  NAYE REPO MEIN SIRF YE EK FILE DAAL. Bas.
+#  Apni Tailscale key uss repo ke Secret mein daal.
+#
+#  ⚡ ZAROORI: repo PUBLIC rakho — tabhi 4 CPU / 16 GB milega
+#     (private pe sirf 2 CPU / 7 GB + 2000 min/month)
+#     Secrets public repo mein bhi SAFE hote hain — koi nahi dekh sakta.
+#
+#  MILNE WALI CHEEZEIN (sab phone ke browser se):
+#     💻 VS Code (code-server)     :8080
+#     🖥️  Linux desktop (XFCE)      :6080/vnc.html
+#     ⌨️  Web terminal (ttyd)       :7681
+#     📁 File manager              :8081
+#     🤖 Agent Zero web UI         :8000
+#     🔥 OmniRush CLI              (terminal se)
+#     🧠 Ollama — local LLM        :11434  (koi API key nahi, unlimited)
+# ============================================================
+name: Linux Beast
+
+on:
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: 'Kitne ghante chalu rakhe? (max 5)'
+        required: true
+        default: '5'
+        type: choice
+        options: ['1', '2', '3', '4', '5']
+      preset:
+        description: 'full = sab kuch | fast = jaldi boot (VS Code + terminal only)'
+        required: true
+        default: 'full'
+        type: choice
+        options: ['full', 'fast']
+      desktop:
+        description: 'Linux desktop (XFCE) bhi chahiye?'
+        required: true
+        default: 'yes'
+        type: choice
+        options: ['yes', 'no']
+      ollama:
+        description: 'Local LLM (koi API key nahi, unlimited) — kaunsa model?'
+        required: true
+        default: 'small'
+        type: choice
+        options: ['small', 'medium', 'none']
+      install_omnirush:
+        description: 'OmniRush CLI install karu?'
+        required: true
+        default: 'yes'
+        type: choice
+        options: ['yes', 'no']
+      tailscale:
+        description: 'Tailscale ON karu? (bahar se access ke liye)'
+        required: true
+        default: 'yes'
+        type: choice
+        options: ['yes', 'no']
+
+env:
+  TS_HOST: beast-${{ github.run_id }}
+
+jobs:
+  beast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+
+    steps:
+      # ============================================================
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ----------------------------------------------------------
+      - name: Diagnostics (machine kitni takatwar hai)
+        run: |
+          echo "===== MACHINE ====="
+          echo "CPU cores : $(nproc)"
+          echo "RAM       : $(free -g | awk '/Mem:/{print $2}') GB"
+          echo "Disk free : $(df -h / | awk 'NR==2{print $4}')"
+          echo "OS        : $(. /etc/os-release && echo $PRETTY_VERSION)"
+          echo "Kernel    : $(uname -r)"
+          echo "==================="
+
+      # ----------------------------------------------------------
+      # Disk khali karo (~20 GB extra milta hai)
+      # ----------------------------------------------------------
+      - name: Free disk space
+        continue-on-error: true
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /usr/local/share/powershell /usr/share/swift /opt/hostedtoolcache 2>/dev/null || true
+          sudo apt-get clean || true
+          echo "Disk ab: $(df -h / | awk 'NR==2{print $4}')"
+
+      # ----------------------------------------------------------
+      - name: Base packages
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            curl wget git jq unzip zip tmux htop btop tree neovim \
+            ripgrep fd-find build-essential ca-certificates \
+            python3 python3-pip python3-venv pipx \
+            xvfb x11vnc novnc websockify \
+            sqlite3 fontconfig locales
+          echo "[OK] base packages"
+
+      - name: Setup Node 22 + pnpm + bun
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JS tooling
+        continue-on-error: true
+        run: |
+          npm i -g pnpm yarn bun 2>&1 | tail -3 || true
+          echo "node $(node -v) | npm $(npm -v)"
+
+      - name: Go + Rust
+        if: inputs.preset == 'full'
+        continue-on-error: true
+        run: |
+          curl -fsSL https://go.dev/dl/go1.23.4.linux-amd64.tar.gz -o /tmp/go.tgz
+          sudo tar -C /usr/local -xzf /tmp/go.tgz
+          export PATH=$PATH:/usr/local/go/bin
+          echo "/usr/local/go/bin" >> $GITHUB_PATH
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          echo "[OK] go + rust"
+
+      # ============================================================
+      #  TAILSCALE — pehle lagao, warna kuch access nahi hoga
+      # ============================================================
+      - name: Tailscale
+        if: inputs.tailscale == 'yes'
+        env:
+          TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
+        run: |
+          if [ -z "$TAILSCALE_AUTH_KEY" ]; then
+            echo "[!] TAILSCALE_AUTH_KEY nahi hai — skip."
+            exit 0
+          fi
+          if [[ "$TAILSCALE_AUTH_KEY" != tskey-auth-* ]]; then
+            echo "=================================================="
+            echo "  GALAT KEY! 'tskey-auth-...' chahiye."
+            echo "  Tu ne shayad 'tskey-api-...' (API token) dala hai."
+            echo "  Reusable ON karna na bhoolna."
+            echo "=================================================="
+            exit 0
+          fi
+          curl -fsSL https://tailscale.com/install.sh | sh
+          sudo tailscale up --authkey="$TAILSCALE_AUTH_KEY" --hostname="$TS_HOST" --ssh
+          sleep 8
+          IP=$(tailscale ip -4 | head -1)
+          echo "TS_IP=$IP" >> $GITHUB_ENV
+          echo "=================================================="
+          echo "  TAILSCALE ON — IP: $IP"
+          echo "=================================================="
+
+      # ============================================================
+      #  💻 CODE-SERVER (VS Code in browser)
+      # ============================================================
+      - name: code-server (VS Code)
+        continue-on-error: true
+        env:
+          PASSWORD: beast
+        run: |
+          curl -fsSL https://code-server.dev/install.sh | sh
+          mkdir -p ~/.config/code-server
+          cat > ~/.config/code-server/config.yaml <<EOF
+          bind-addr: 0.0.0.0:8080
+          auth: password
+          password: beast
+          cert: false
+          EOF
+          nohup code-server > /tmp/code-server.log 2>&1 &
+          sleep 6
+          (curl -s -o /dev/null -w "code-server HTTP %{http_code}\n" http://127.0.0.1:8080/) || true
+
+      # ============================================================
+      #  ⌨️  TTYD (web terminal)
+      # ============================================================
+      - name: ttyd (web terminal)
+        continue-on-error: true
+        run: |
+          curl -fsSL -o /usr/local/bin/ttyd \
+            https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.x86_64
+          chmod +x /usr/local/bin/ttyd
+          nohup ttyd -p 7681 -W bash > /tmp/ttyd.log 2>&1 &
+          sleep 3
+          pgrep -x ttyd >/dev/null && echo "[OK] ttyd chalu :7681" || echo "[!] ttyd nahi chala"
+
+      # ============================================================
+      #  📁 FILEBROWSER
+      # ============================================================
+      - name: filebrowser
+        continue-on-error: true
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash
+          mkdir -p $HOME/fb
+          (cd $HOME/fb && filebrowser -a 127.0.0.1 -p 8081 -r $HOME -d $HOME/fb/fb.db \
+             --username admin --password beast > /tmp/fb.log 2>&1 &)
+          sleep 5
+          (curl -s -o /dev/null -w "filebrowser HTTP %{http_code}\n" http://127.0.0.1:8081/) || true
+
+      # ============================================================
+      #  🖥️  XFCE DESKTOP + noVNC
+      # ============================================================
+      - name: XFCE desktop + noVNC
+        if: inputs.desktop == 'yes'
+        continue-on-error: true
+        run: |
+          sudo apt-get install -y -qq xfce4 xfce4-terminal dbus-x11 x11-xserver-utils
+          Xvfb :99 -screen 0 1366x768x24 >/dev/null 2>&1 &
+          sleep 3
+          DISPLAY=:99 startxfce4 >/tmp/xfce.log 2>&1 &
+          sleep 6
+          x11vnc -display :99 -forever -shared -nopw -rfbport 5900 >/dev/null 2>&1 &
+          sleep 2
+          websockify --web=/usr/share/novnc/ 6080 localhost:5900 >/dev/null 2>&1 &
+          sleep 4
+          pgrep -x Xvfb >/dev/null && echo "[OK] desktop chalu :99" || echo "[!] desktop fail"
+
+      # ============================================================
+      #  🧠 OLLAMA — local LLM (koi key nahi, unlimited)
+      # ============================================================
+      - name: Ollama + local model
+        if: inputs.ollama != 'none'
+        continue-on-error: true
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          sleep 8
+          if [ "${{ inputs.ollama }}" = "small" ]; then MODEL="qwen2.5-coder:1.5b"; else MODEL="qwen2.5-coder:7b"; fi
+          echo "Model download: $MODEL (thoda time lagega)"
+          ollama pull $MODEL 2>&1 | tail -3
+          ollama list
+          echo "[OK] Ollama ready :11434"
+
+      # ============================================================
+      #  🔥 OMNIRUSH CLI
+      # ============================================================
+      - name: OmniRush CLI
+        if: inputs.install_omnirush == 'yes'
+        continue-on-error: true
+        env:
+          OMNIRUSH_AUTH: ${{ secrets.OMNIRUSH_AUTH }}
+        run: |
+          npm install -g omnirush@latest
+          omnirush --version || true
+          mkdir -p "$HOME/.omnirush"
+          if [ -n "$OMNIRUSH_AUTH" ]; then
+            echo "$OMNIRUSH_AUTH" | base64 -d > "$HOME/.omnirush/auth.json" 2>/dev/null || true
+            [ -s "$HOME/.omnirush/auth.json" ] && echo "[OK] OmniRush session mili" || rm -f "$HOME/.omnirush/auth.json"
+          fi
+          echo "Login ke liye terminal/ttyd mein: omnirush login"
+
+      # ============================================================
+      #  🤖 AGENT ZERO (agar repo mein AGENT_ONEFILE.py hai)
+      # ============================================================
+      - name: Agent Zero web UI
+        continue-on-error: true
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GROQ_API_KEY:       ${{ secrets.GROQ_API_KEY }}
+          CEREBRAS_API_KEY:   ${{ secrets.CEREBRAS_API_KEY }}
+          GEMINI_API_KEY:     ${{ secrets.GEMINI_API_KEY }}
+          AZ_WEB_PORT:        '8000'
+          AZ_WORKDIR:         ${{ github.workspace }}/workspace
+        run: |
+          if [ ! -f AGENT_ONEFILE.py ]; then
+            echo "[!] AGENT_ONEFILE.py nahi hai — Agent Zero skip."
+            exit 0
+          fi
+          mkdir -p workspace
+          python3 AGENT_ONEFILE.py unpack
+          nohup python3 AGENT_ONEFILE.py web > /tmp/agentzero.log 2>&1 &
+          sleep 8
+          (curl -s -o /dev/null -w "Agent Zero HTTP %{http_code}\n" http://127.0.0.1:8000/) || true
+          grep -m1 "TOKEN:" /tmp/agentzero.log || true
+
+      # ============================================================
+      #  📋 SUMMARY — sab kuch yahan dikhega
+      # ============================================================
+      - name: SHOW EVERYTHING
+        run: |
+          IP="${{ env.TS_IP }}"
+          [ -z "$IP" ] && IP="(tailscale off - repo public hai, logs dekh)"
+          echo ""
+          echo "=========================================================="
+          echo "   🐧 LINUX BEAST TAIYAAR HAI"
+          echo "=========================================================="
+          echo ""
+          echo "   Tailscale IP : $IP"
+          echo ""
+          echo "   ---- PHONE KE BROWSER MEIN KHOLO ----"
+          echo "   💻 VS Code      : http://$IP:8080     (pass: beast)"
+          echo "   🖥️  Desktop      : http://$IP:6080/vnc.html"
+          echo "   ⌨️  Terminal     : http://$IP:7681"
+          echo "   📁 Files        : http://$IP:8081     (admin/beast)"
+          echo "   🤖 Agent Zero   : http://$IP:8000"
+          echo "   🧠 Ollama       : http://$IP:11434"
+          echo ""
+          echo "   ---- MACHINE ----"
+          echo "   CPU: $(nproc) cores | RAM: $(free -g | awk '/Mem:/{print $2}') GB | Disk: $(df -h / | awk 'NR==2{print $4}')"
+          echo ""
+          echo "   ---- CHALU SERVICES ----"
+          (ss -tlnp 2>/dev/null | grep -E ':(8080|6080|7681|8081|8000|11434)' | awk '{print "   "$4}') || true
+          echo ""
+          echo "=========================================================="
+
+      # ============================================================
+      #  📨 TELEGRAM (optional)
+      # ============================================================
+      - name: Telegram notification
+        continue-on-error: true
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT:  ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then echo "[!] Telegram set nahi — skip."; exit 0; fi
+          IP="${{ env.TS_IP }}"
+          MSG="🐧 *Linux Beast chal raha hai*%0A%0AIP: \`$IP\`%0A%0A💻 VS Code: http://$IP:8080%0A🖥️ Desktop: http://$IP:6080/vnc.html%0A⌨️ Terminal: http://$IP:7681%0A📁 Files: http://$IP:8081%0A🤖 Agent Zero: http://$IP:8000%0A%0A$(nproc) CPU | $(free -g | awk '/Mem:/{print $2}') GB RAM%0A${{ inputs.hours }} ghante chalu rahega"
+          curl -s -X POST "https://api.telegram.org/bot$TG_TOKEN/sendMessage" \
+            -d "chat_id=$TG_CHAT&parse_mode=Markdown&text=$MSG" > /dev/null
+          echo "[OK] Telegram pe bhej diya."
+
+      # ============================================================
+      - name: Keep alive
+        run: |
+          H="${{ inputs.hours }}"
+          END=$(( $(date +%s) + H*3600 ))
+          echo "Beast $H ghante chalega (tab tak: $(date -d @$END))"
+          N=0
+          while [ "$(date +%s)" -lt "$END" ]; do
+            sleep 60; N=$((N+1))
+            if [ $((N % 5)) -eq 0 ]; then
+              echo "[alive $(date +%H:%M)] IP: $(tailscale ip -4 2>/dev/null | head -1) | VS Code :8080 | Desktop :6080 | Terminal :7681"
+            fi
+          done
+          echo "Time khatam."
+
+      # ============================================================
+      - name: Save workspace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beast-workspace-${{ github.run_id }}
+          path: workspace/
+          if-no-files-found: ignore
+          
