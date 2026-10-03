@@ -39,6 +39,7 @@ jobs:
       GEMINI_API_KEY:     ${{ secrets.GEMINI_API_KEY }}
       KAGGLE_USERNAME:    ${{ secrets.KAGGLE_USERNAME }}
       KAGGLE_KEY:         ${{ secrets.KAGGLE_KEY }}
+      KAGGLE_API_TOKEN:   ${{ secrets.KAGGLE_API_TOKEN }}
       NX_HOURS:  ${{ github.event.inputs.hours }}
       NX_GPU:    ${{ github.event.inputs.gpu }}
       NX_MODEL:  ${{ github.event.inputs.model }}
@@ -110,13 +111,30 @@ jobs:
         shell: bash
         run: |
           cd "$NX_ROOT"
-          if [ "$NX_GPU" != "true" ] || [ -z "$KAGGLE_USERNAME" ] || [ -z "$KAGGLE_KEY" ]; then
-            echo "GPU brain skipped (free API + local brain kaafi hai)"; exit 0
+          HAS_NEW=0; HAS_OLD=0
+          [ -n "$KAGGLE_API_TOKEN" ] && HAS_NEW=1
+          [ -n "$KAGGLE_USERNAME" ] && [ -n "$KAGGLE_KEY" ] && HAS_OLD=1
+          if [ "$NX_GPU" != "true" ] || [ "$HAS_NEW" = "0" -a "$HAS_OLD" = "0" ]; then
+            echo "GPU brain skipped (koi kaggle credential nahi mila)"
+            echo "Chahe toh KAGGLE_API_TOKEN secret daal kar dobara run kar."
+            exit 0
           fi
-          python -m pip install -q kaggle 2>&1 | tail -2
+          python -m pip install -q --upgrade kaggle 2>&1 | tail -2
           mkdir -p "$HOME/.kaggle" kaggle_kernel
-          printf '{"username":"%s","key":"%s"}' "$KAGGLE_USERNAME" "$KAGGLE_KEY" > "$HOME/.kaggle/kaggle.json"
-          chmod 600 "$HOME/.kaggle/kaggle.json" 2>/dev/null || true
+
+          # NAYA tareeka (Kaggle ab yahi mangta hai)
+          if [ "$HAS_NEW" = "1" ]; then
+            printf '%s' "$KAGGLE_API_TOKEN" > "$HOME/.kaggle/access_token"
+            chmod 600 "$HOME/.kaggle/access_token" 2>/dev/null || true
+            export KAGGLE_API_TOKEN="$KAGGLE_API_TOKEN"
+            echo "kaggle auth: naya token format"
+          fi
+          # PURANA tareeka (backup)
+          if [ "$HAS_OLD" = "1" ]; then
+            printf '{"username":"%s","key":"%s"}' "$KAGGLE_USERNAME" "$KAGGLE_KEY" > "$HOME/.kaggle/kaggle.json"
+            chmod 600 "$HOME/.kaggle/kaggle.json" 2>/dev/null || true
+            echo "kaggle auth: purana json format (backup)"
+          fi
 
                     cat > kaggle_kernel/kernel-metadata.json <<'KMEOF'
           {
@@ -191,7 +209,9 @@ jobs:
 
           # kernel id must carry the REAL kaggle username
           km = open("kaggle_kernel/kernel-metadata.json", encoding="utf-8").read()
-          km = km.replace("%%USER%%", os.environ.get("KAGGLE_USERNAME", "me"))
+          import re as _re
+          _u = _re.sub(r"[^a-z0-9]", "", (os.environ.get("KAGGLE_USERNAME") or "me").lower()) or "me"
+          km = km.replace("%%USER%%", _u)
           open("kaggle_kernel/kernel-metadata.json", "w").write(km)
 
           tpl = open("kaggle_kernel/nexora-gpu.ipynb.tpl", encoding="utf-8").read()
@@ -206,7 +226,20 @@ jobs:
           print("notebook built")
           PY
 
-          python -m kaggle kernels push -p kaggle_kernel 2>&1 | tail -8 || echo "kaggle push fail — aage badh rahe hain"
+          python -m kaggle kernels push -p kaggle_kernel > push.log 2>&1
+          PRC=$?
+          if [ $PRC -ne 0 ]; then
+            echo "pehli koshish fail - ek baar aur try..."
+            sleep 10
+            python -m kaggle kernels push -p kaggle_kernel > push.log 2>&1
+            PRC=$?
+          fi
+          tail -14 push.log
+          if [ $PRC -ne 0 ]; then
+            echo "kaggle push FAIL hua - GPU brain skip kar rahe hain (25 min wait nahi karenge)"
+            exit 0
+          fi
+          echo "kaggle push OK"
 
           cat > getip.py <<'PY'
           import sys, json
@@ -332,7 +365,21 @@ jobs:
                           "If a login or CAPTCHA appears, call request_takeover and wait."),
           ]
 
+          MODELS = {
+           "kaggle":     ["qwen2.5-coder:32b","qwen2.5-coder:14b","qwen2.5-coder:7b","qwen3:32b","gpt-oss:20b","llama3.1:8b","deepseek-r1:14b"],
+           "local":      ["qwen2.5-coder:7b","qwen2.5-coder:3b","llama3.1:8b","phi3:mini"],
+           "groq":       ["llama-3.3-70b-versatile","deepseek-r1-distill-llama-70b","llama-3.1-8b-instant","gemma2-9b-it","meta-llama/llama-4-scout-17b-16e-instruct"],
+           "cerebras":   ["qwen-3-32b","llama-3.3-70b","llama3.1-8b","gpt-oss-120b"],
+           "openrouter": ["qwen/qwen3-32b:free","deepseek/deepseek-r1:free","meta-llama/llama-3.3-70b-instruct:free","google/gemini-2.0-flash-exp:free","mistralai/mistral-nemo:free","moonshotai/kimi-k2:free"],
+           "gemini":     ["gemini-2.0-flash","gemini-2.5-flash","gemini-2.5-pro"],
+          }
+          DEFAULT_MODELS = {"kaggle":"qwen2.5-coder:32b","local":"qwen2.5-coder:7b",
+                            "groq":"llama-3.3-70b-versatile","cerebras":"qwen-3-32b",
+                            "openrouter":"qwen/qwen3-32b:free","gemini":"gemini-2.0-flash"}
+
           DEFAULT_SETTINGS = {
+              "brain_choice": "auto",
+              "models": dict(DEFAULT_MODELS),
               "model": "auto", "temperature": 0.3, "max_steps": 40,
               "brain_order": ["kaggle", "groq", "cerebras", "openrouter", "gemini", "local"],
               "auto_approve": {"read_file": True, "list_files": True, "browser_open": True,
@@ -388,54 +435,4 @@ jobs:
           # ─────────────────────────── minimal websocket client (stdlib) ───────────────────────────
           class CDPWs:
               def __init__(self, url, timeout=20):
-                  u = urllib.parse.urlparse(url)
-                  self.sock = socket.create_connection((u.hostname, u.port or 80), timeout=timeout)
-                  key = base64.b64encode(os.urandom(16)).decode()
-                  path = u.path or "/"
-                  if u.query: path += "?" + u.query
-                  req = (f"GET {path} HTTP/1.1\r\nHost: {u.hostname}:{u.port or 80}\r\n"
-                         f"Upgrade: websocket\r\nConnection: Upgrade\r\n"
-                         f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n")
-                  self.sock.sendall(req.encode())
-                  buf = b""
-                  while b"\r\n\r\n" not in buf:
-                      c = self.sock.recv(4096)
-                      if not c: raise RuntimeError("ws handshake closed")
-                      buf += c
-                  if b"101" not in buf.split(b"\r\n")[0]:
-                      raise RuntimeError("ws upgrade failed: " + buf[:120].decode("utf-8", "ignore"))
-                  self.buf = buf.split(b"\r\n\r\n", 1)[1]
-                  self.sock.settimeout(timeout)
-                  self._id = 0
-                  self._lock = threading.Lock()
-                  self._resp = {}
-                  self._evt = []
-                  self.alive = True
-                  threading.Thread(target=self._reader, daemon=True).start()
-
-              # ---- framing ----
-              def _read(self, n):
-                  while len(self.buf) < n:
-                      c = self.sock.recv(65536)
-                      if not c: raise RuntimeError("ws closed")
-                      self.buf += c
-                  d, self.buf = self.buf[:n], self.buf[n:]
-                  return d
-
-              def _send(self, opcode, payload):
-                  hdr = bytearray([0x80 | opcode])
-                  n = len(payload)
-                  mask = os.urandom(4)
-                  if n < 126: hdr.append(0x80 | n)
-                  elif n < 65536: hdr.append(0x80 | 126); hdr += struct.pack(">H", n)
-                  else: hdr.append(0x80 | 127); hdr += struct.pack(">Q", n)
-                  hdr += mask
-                  masked = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
-                  self.sock.sendall(bytes(hdr) + masked)
-
-              def _recv_frame(self):
-                  b0, b1 = self._read(2)
-                  fin, op = b0 & 0x80, b0 & 0x0F
-                  ln = b1 & 0x7F
-                  if ln == 126: ln = struct.unpack(">H", self._read(2))[0]
-         
+                  u = url
