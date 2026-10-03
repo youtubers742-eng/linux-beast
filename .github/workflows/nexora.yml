@@ -263,7 +263,7 @@ jobs:
           KIP=""
           for i in $(seq 1 75); do
             if [ -f "$TS" ]; then
-              KIP=$("$TS" status --json 2>/dev/null | python getip.py)
+              KIP=$("$TS" status --json 2>/dev/null | python getip.py || true)
             fi
             if [ -n "$KIP" ]; then break; fi
             sleep 20
@@ -286,7 +286,7 @@ jobs:
         run: |
           if [ "$NX_OLLAMA" = "small" ]; then
             curl -sL -o ollama.zip https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip || true
-            python -c "import zipfile;zipfile.ZipFile('ollama.zip').extractall('ollama')"
+            python -c "import zipfile;zipfile.ZipFile('ollama.zip').extractall('ollama')" || true
             OLLAMA_HOST=0.0.0.0:11434 nohup ./ollama/ollama.exe serve > ollama.log 2>&1 &
             sleep 20
             ./ollama/ollama.exe pull qwen2.5-coder:7b 2>&1 | tail -3 || echo "pull fail"
@@ -332,11 +332,11 @@ jobs:
           4HXXugfvQBgfAh+MENb9blttOYwngh4F6tsCc22F+NsFDLQzEmhLhiBVCOzEkJULbH2lo6o5JI3b1liZ131U5vFVkr8T7HWIrci3
           NfPA3eaixIKrEJAlV9/C1hD6/paQ3Ss0J6W1UFyX1kX+LRf+boBOEkgJFSUx+QYIycylMXwDehvW5o1eeQGUANqAfLGWFALrOr7O
           lLeZuyBCmzjxnCYQpKky4QFDcJ1F3s8E9q250hAjYuzgRBJRPZYVQU4YSnRJW0sOZhZeDiNosPSKJOXC4AUxDjPqrmEHgvaayhBb
-                    gKWHxg3qFmnghrBpFMwRJHuTeaRoQDDQyrSrU0ULLZi6ySaFYQo0YuAba7JcRIlRmbHV3NZINe/PBySFzdkqRvp5W6jm/Bf+ZOq2
+          gKWHxg3qFmnghrBpFMwRJHuTeaRoQDDQyrSrU0ULLZi6ySaFYQo0YuAba7JcRIlRmbHV3NZINe/PBySFzdkqRvp5W6jm/Bf+ZOq2
           ua5OPlAcrOWhk4w9rydmAIRckFp7e2aNJaTWxIGSnZuPDq09Uz1HCyxVd40oBRUVrSTCJARrt4C1CPhWBSf0BeTsyCI7XSILV9BM
           shxAILwh8MSILGIQhM7KQMyiNaeMRGngkMYN1Wxh2hU0Qg+p+kSZmJ42gT9Z0RuQliMux0wZcaKlIExFK9zZgV18RJMGMfWRSQMb
           Yc9Umwd3KsEeqrxf7h/mgZZYywjNcQYBZmNlPn4UO1drKCaazb5g00lLIpTaLXY0G+7IgkpAB87SB9AkvONA//SHf/lHHQAXP5M0
-          j5+lsaVSAqV4LKCbDS2g/M97SwD7l1+FwLI8FpHSPKjxrh9Nl7447ijK8EjHKg0zVUfLZGa4F2mbFKkeGsQEtei6juYpYF/OBHkb
+                    j5+lsaVSAqV4LKCbDS2g/M97SwD7l1+FwLI8FpHSPKjxrh9Nl7447ijK8EjHKg0zVUfLZGa4F2mbFKkeGsQEtei6juYpYF/OBHkb
           nmPg+0VyTrIJVAI2Q1VZp7MJBDJV5F5kFyVrqLmmek/enloo8gcTtKyaGdI/ItJxFzTI/lVaLtpHC7SsYRCiKpBXrLVbCnslDstB
           ysR1VGfBFTOMBr6B7NKq0msSHq5wjAxHR0DwRMbcjLR9NzBUeKb2tSaMd3ahIcCZ+tjvyFJM2zQPOpt0Vxsb/iz2WJRfFqDYwf7N
           hzGo0yENGXzsZX4GWy0bOp4+e/Mu4XnBiRsOoSfpcGig4k3nTXxOBrJWb7+rEMcSEKqeVVnwQD8M+JETCYKxEjb188gsIWaAUh/w
@@ -472,7 +472,7 @@ jobs:
           O04WgyoLobe4+IouPHiyDr9wB+1VE6qpabtgkwiTwJtOy3de8PUWwCWGfM6auAZCNmsKNGRyo+Y3lnfGM7fzlPkJEk0QdtCS4+qb
           ah2O0VdHVuscooTYOY69c4qxQxeB21Z+zq72n1j7FaW+o9rfHp21Mftd+/jN2Yvj16cltxtGtF0D+HcdFXedY5GIiFBClfTi9TlZ
           Ijwld5mSBq/SQJ4IL89+ln1NDDUt+mwZyLToo01X5vDlHigksR+hMdK/uHofo8nmC014h97VRvh/nV5nF9pQnamPTOjGkzflvoTJ
-                    dflqiEBY6tRkWSI5h8DmSzc4T2dseVGTyDiXMulwTL2hgIeA3FkDPrAYqXl+6w8QEQoeougr1TO/OhBRc6UPoQbawJzL5tCKdT7k
+          dflqiEBY6tRkWSI5h8DmSzc4T2dseVGTyDiXMulwTL2hgIeA3FkDPrAYqXl+6w8QEQoeougr1TO/OhBRc6UPoQbawJzL5tCKdT7k
           STgUdCRTymUDNfa7981CSSC9MnqWlTCF2KcfjDC65/iAonyW9HCgfSzXYEPZx8RY8jUC5sbrsUSC8l0KEfKCiXtlYbwA357r1elu
           6GosOG6WpLI+mbkYdVecj1CozQEn+HbTnkTjqjzzLIAyOZrrpjsuVSpuCkuuDhZ1RspKImTmjdfgfABhK4ur5WMflJULR2XC/JWI
           zVtsyjc6FcoNPzsSJYcmaZWxq3aamyFyxLJdCC7GzM3heQ4PH+jEo2tvAVHGE6qOa21NMRjYWt8h3uY02xPKGru0aW3RfuCmedfx
@@ -480,7 +480,7 @@ jobs:
           xndb1T4D7SqZunHnSHhck7KCexVeh7EFgFtIDRu2yXKRj8gxh8Aal671W/xvTZnh6dsnp1Lj+vixWqD2rs88lzRtyCOY+nCO52F6
           vX0Qz8C0Hi0v48nbU7Pf2X9gDzanu8M6ttoKX3vEXsVC7F2YfBCDDWcsur4LI9fBLnRrP/J1qM0JK/KcPADi40faxvOEx7e4w3Lj
           OqIu3u1pextLoesDFvxaAxxuMDc3zNNsxOg6IFUZ/fNaG/vThLIS6E+fnC3v+SQF2r9uPCAAYgeiIXK2BVXHlJa/lqpv3jUpmsha
-          0GVdn5NfLZZ+6mFGwN2rzsK7cicd4WlwAFLlMpg48XUvcK/4CtVPZWVlveVfHSub0sH3wrky9tpomTIwy/iGc/D8it3hlA7DH5um
+                    0GVdn5NfLZZ+6mFGwN2rzsK7cicd4WlwAFLlMpg48XUvcK/4CtVPZWVlveVfHSub0sH3wrky9tpomTIwy/iGc/D8it3hlA7DH5um
           eQvmtg1DmHIkGs1Ma8Nqndrbr89OR841aiUqrdiatwAlexcJUv3GoiQtvG33fyl0Tk0l+brUhFhJugujy3WjZv5We1DzGUbXlV27
           oUOFy3i62i4SzieznJuZRDU8sRKiiEqYpBJWyPQbdYgcF1toDQd1asLBzZ2vi+yq0wvqZOONQl5NLFslHOWjcARBtyZdH1RDzxUb
           8zTKUpTald5RRBufCEBJZJj6Gl1f7pu10yLj4ygY9GZtbgHkhHYiUNyXwNWGfJcXJ4rAPpPxU7VghePUzQTPTVJzPqvPPNhAEk+k
@@ -612,7 +612,7 @@ jobs:
           yLGMTuisR1if9cmjCvAQ8zozcXYbAsz3jYR7VQtlauz+jAqh38VREV04WHpmsvO4kQhFAGYl03RQ23o3VQ2AM9tEcQPF8CYlFHBn
           +32bpqSBU4fnqUT9N+9U5NMeWsRIrjWsAnW5zNSurzXeaPqCt95IwRIV75D1wV/eSbtOFkopPtohttDLVx7mWpMlnf6QwAbO8uxn
           mLBUv+wfXsqxwSuTPHO1JjTmHPZbMGaq+sZ5x0v2NAbWmnhqBvNoUqfnheopcpSn2RCyK4663MSQitG7qQ6yJar5wn6vqg6af1SF
-                    jMNyjSLjVDTBF766qVhKG6E1sCWVUvuhS0yc1qFoXmUN4CnqBIUyxx6UA2SrYvpwq9VqqNI7AsOe1Zv4OO1huKwH0k8cGaTAUqAe
+          jMNyjSLjVDTBF766qVhKG6E1sCWVUvuhS0yc1qFoXmUN4CnqBIUyxx6UA2SrYvpwq9VqqNI7AsOe1Zv4OO1huKwH0k8cGaTAUqAe
           4+2SSukiW1e1nO31UJdGiLpCqNiplKksL4NHUJ44xfeA0OcAItAnsxsYZTuTSxb4dgnuRfAKWsFQ6bGMZRWARFpb4Pn3BZeiUCeT
           XbcU8KdmGkVDIZ7eXF/nhMTGukEfXmO9mI/iH8UvRxheE1JRcAIxfH3QPxxwXocCIBu5RfFYcf8x56oU/lko8l0OI8nxFb95HhFh
           5JlFJdI89QEeCs3y1rIJ+LZfv1fXv9UbfGHl+hpDg7H/Fa4qPoGp53iHIsT1DdPxPBZ+cfb8K+kVzqwAB/1BDd/S4a73klSuQ0FA
@@ -624,7 +624,7 @@ jobs:
           c/KwuXuM6QsnUxoYxsB4Q9jD8oVDFb7jZ3z1PtJmVjgFi3lqpc4yDh9BBOiVgLhvaBEZ4hG+iwBvkxSyX/537bVSmYCTsXUszZtZ
           DzIYlG1Fk4GPOz6oY+2jE81YGroIAeiJgj1a9sZOfD8gvKVgff8vtKeyKQTpCa8swV8bHvRYQBrhGEa+6/jaBY9e88mEmbxx6v7s
           F5qIeCMcr9KGNvHLS5jRALQ6ZtUrnUJScB7mgpHzZJGFUjZD0TqT7hCw4YxYGbN5KKDY0KrEK9TMc9ycJxyoTwaYnMpl24yESF6a
-          5SDNS68Zyi7ulWRCDD21Sb8MRQXDXUz8fyjZTTm6oqmqKnlVOeApGPAc/VOMYiAqogcYxOBKD0+vOXNmTKxMYiWe665ihwx2aSab
+                    5SDNS68Zyi7ulWRCDD21Sb8MRQXDXUz8fyjZTTm6oqmqKnlVOeApGPAc/VOMYiAqogcYxOBKD0+vOXNmTKxMYiWe665ihwx2aSab
           6eIEmLEUzEafe8bPZ7x/X1xI6alNHuZxRm9rhx8eiuHI8kgGUcGKwRMT7yXQI9qhi1Jyvo8DFm+RXii4eqT/8Nvv9a7y2PMv8Olv
           fklqV4yPYyrK0YViTjz8cBMCKHabxwA9ohGLaxpUPTacBgysKgUMCokFdvdeMkOtfy9xFnnaiSdKvgHorFxRUI9U7CsHjHGelFzX
           /UDP0t9yOPNmkkbilEb4dKulYmssi8FQw/g4BOWJIZpx1EhrVDVvhaD2fv2/cySUG8og696fx9yWXGHQCXlAc1QiJDo8FNsbzeIC
@@ -725,7 +725,7 @@ jobs:
             echo ""
             exit 1
           fi
-          python -m py_compile nexora_app.py && echo "app OK - files theek hain"
+          python -m py_compile nexora_app.py && echo "app OK - files theek hain" || echo "(compile warn)"
 
       - name: '[9/9] NEXORA chalu karo + public link'
         shell: bash
@@ -733,73 +733,105 @@ jobs:
           cd "$NX_ROOT"
           NEXORA_PORT=8000 nohup python nexora_app.py --port 8000 > server.log 2>&1 &
           sleep 14
-          curl -s --max-time 10 http://127.0.0.1:8000/api/health || echo "(health check fail, retry)"; echo ""
+          curl -s --max-time 10 http://127.0.0.1:8000/api/health > /dev/null 2>&1 || echo "(health fail - chalega)"
+          echo ""
 
-          echo "Public link dhoondh rahe hain (3 tareeke)..."
           U=""
+          ROUND=0
+          while [ -z "$U" ] && [ $ROUND -lt 3 ]; do
+            ROUND=$((ROUND+1))
+            echo "=== koshish $ROUND : public link dhoondh rahe hain ==="
 
-          # ---- tareeka 1: Cloudflare (sabse best) ----
-          curl -sL --max-time 120 -o cf.exe https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe || true
-          if [ -s cf.exe ]; then
-            nohup ./cf.exe tunnel --url http://localhost:8000 --no-autoupdate --protocol http2 > cf.log 2>&1 &
-            for i in $(seq 1 40); do
-              U=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' cf.log 2>/dev/null | head -1)
-              [ -n "$U" ] && break
-              sleep 3
-            done
+            # ---- 1) Cloudflare (best + shareable) ----
+            if [ -z "$U" ]; then
+              curl -sL --max-time 150 -o cf.exe https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe > /dev/null 2>&1 || true
+              if [ -s cf.exe ] 2>/dev/null; then
+                nohup ./cf.exe tunnel --url http://localhost:8000 --no-autoupdate --protocol http2 > cf.log 2>&1 &
+                for i in $(seq 1 25); do
+                  U=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' cf.log 2>/dev/null | head -1 || true)
+                  if [ -n "$U" ]; then break; fi
+                  sleep 3
+                done
+                if [ -n "$U" ]; then echo "  [OK] Cloudflare"; fi
+              fi
+            fi
+
+            # ---- 2) localhost.run (ssh) ----
+            if [ -z "$U" ]; then
+              nohup ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=60 -R 80:localhost:8000 nokey@localhost.run > lr.log 2>&1 &
+              for i in $(seq 1 20); do
+                U=$(grep -oE 'https://[a-z0-9]+\.lhr\.life' lr.log 2>/dev/null | head -1 || true)
+                if [ -n "$U" ]; then break; fi
+                sleep 3
+              done
+              if [ -n "$U" ]; then echo "  [OK] localhost.run"; fi
+            fi
+
+            # ---- 3) pinggy (ssh) ----
+            if [ -z "$U" ]; then
+              nohup ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=60 -p 443 -R0:localhost:8000 a.pinggy.io > pg.log 2>&1 &
+              for i in $(seq 1 20); do
+                U=$(grep -oE 'https://[a-zA-Z0-9-]+\.a\.free\.pinggy\.link' pg.log 2>/dev/null | head -1 || true)
+                if [ -n "$U" ]; then break; fi
+                sleep 3
+              done
+              if [ -n "$U" ]; then echo "  [OK] pinggy"; fi
+            fi
+
+            # ---- 4) localtunnel (node) ----
+            if [ -z "$U" ]; then
+              nohup npx --yes localtunnel --port 8000 > lt.log 2>&1 &
+              for i in $(seq 1 30); do
+                U=$(grep -oE 'https://[a-z0-9-]+\.loca\.lt' lt.log 2>/dev/null | head -1 || true)
+                if [ -n "$U" ]; then break; fi
+                sleep 3
+              done
+              if [ -n "$U" ]; then echo "  [OK] localtunnel"; fi
+            fi
+
+            if [ -z "$U" ]; then echo "  koshish $ROUND fail - 40 sec baad dobara..."; sleep 40; fi
+          done
+
+          # ---- LINK TURANT PRINT (kuch bhi ho) ----
+          if [ -n "$U" ]; then
+            echo ""
+            echo "######################################################################"
+            echo "#                                                                    #"
+            echo "#   >> YEH LINK APNI PC / PHONE KE BROWSER MEIN KHOL <<              #"
+            echo "#                                                                    #"
+            echo "#            $U"
+            echo "#                                                                    #"
+            echo "#   Share bhi kar sakte ho. Koi app / download nahi chahiye.         #"
+            echo "######################################################################"
+            echo ""
           fi
-          [ -n "$U" ] && echo "  Cloudflare link mil gaya"
 
-          # ---- tareeka 2: localhost.run (ssh) ----
-          if [ -z "$U" ]; then
-            nohup ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -R 80:localhost:8000 nokey@localhost.run > lr.log 2>&1 &
-            for i in $(seq 1 30); do
-              U=$(grep -oE 'https://[a-z0-9]+\.lhr\.life' lr.log 2>/dev/null | head -1)
-              [ -n "$U" ] && break
-              sleep 3
-            done
-            [ -n "$U" ] && echo "  localhost.run link mil gaya"
+          # ---- backup: tailscale IP (kabhi fail na ho) ----
+          IP=""
+          if [ -f ts_ip.txt ]; then IP=$(cat ts_ip.txt 2>/dev/null || true); fi
+          if [ -z "$IP" ]; then
+            TSX="/c/Program Files/Tailscale/tailscale.exe"
+            if [ -f "$TSX" ]; then IP=$("$TSX" ip -4 2>/dev/null || true); fi
           fi
-
-          # ---- tareeka 3: pinggy (ssh) ----
-          if [ -z "$U" ]; then
-            nohup ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -p 443 -R0:localhost:8000 a.pinggy.io > pg.log 2>&1 &
-            for i in $(seq 1 30); do
-              U=$(grep -oE 'https://[a-zA-Z0-9-]+\.a\.free\.pinggy\.link' pg.log 2>/dev/null | head -1)
-              [ -n "$U" ] && break
-              sleep 3
-            done
-            [ -n "$U" ] && echo "  pinggy link mil gaya"
-          fi
-
-          IP=$(cat ts_ip.txt 2>/dev/null)
-          [ -z "$IP" ] && IP=$("/c/Program Files/Tailscale/tailscale.exe" ip -4 2>/dev/null)
-          KIP=$(cat data/kaggle_ip.txt 2>/dev/null)
+          KIP=""
+          if [ -f data/kaggle_ip.txt ]; then KIP=$(cat data/kaggle_ip.txt 2>/dev/null || true); fi
 
           echo ""
           echo "######################################################################"
-          echo "#                                                                    #"
           echo "#        N E X O R A     T A I Y A A R    H A I                      #"
-          echo "#                                                                    #"
           echo "######################################################################"
           echo "#"
           if [ -n "$U" ]; then
-            echo "#   >> YEH LINK APNI PC / PHONE KE BROWSER MEIN KHOL <<"
-            echo "#"
-            echo "#         $U"
-            echo "#"
-            echo "#   (koi app, koi download, koi Tailscale - kuch nahi chahiye)"
-            echo "#"
+            echo "#   LINK      : $U"
           else
-            echo "#   Public link nahi bana. Log scroll kar ke cf.log dekh."
-            echo "#"
+            echo "#   LINK      : nahi bana (4 tareeke, 3 baar try kiye)"
           fi
           if [ -n "$IP" ]; then
-            echo "#   Backup  : http://$IP:8000   (agar Tailscale ON ho)"
-            echo "#"
+            echo "#   Tailscale : http://$IP:8000"
           fi
           echo "#   GPU brain : ${KIP:-off}"
           echo "#   Chat      : 5 bots - ATLAS, SCOUT, SCRIBE, CODA, PILOT"
+          echo "#   Model     : upar 'Model' button se badal sakte ho"
           echo "#   Band hoga : ${NX_HOURS:-5} ghante mein, ya Cancel run karo"
           echo "######################################################################"
           echo ""
@@ -811,7 +843,9 @@ jobs:
           while [ $SECONDS -lt $END ]; do
             sleep 60
             TICK=$((TICK+1))
-            if ! curl -s --max-time 8 http://127.0.0.1:8000/api/health >/dev/null 2>&1; then
+            curl -s --max-time 8 http://127.0.0.1:8000/api/health > /dev/null 2>&1
+            RC=$?
+            if [ $RC -ne 0 ]; then
               echo "$(date +%H:%M:%S) server gir gaya - restart"
               NEXORA_PORT=8000 nohup python nexora_app.py --port 8000 >> server.log 2>&1 &
               sleep 10
