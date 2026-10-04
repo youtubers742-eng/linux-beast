@@ -46,7 +46,7 @@ jobs:
       NX_GPU:    ${{ github.event.inputs.gpu }}
       NX_MODEL:  ${{ github.event.inputs.model }}
       NX_OLLAMA: ${{ github.event.inputs.ollama }}
-      NX_ROOT:   ${{ github.workspace }}\nexora
+      NX_ROOT:   ${{ github.workspace }}/nexora
 
     steps:
       - name: '[1/9] Machine info'
@@ -323,9 +323,12 @@ jobs:
       - name: '[8/9] NEXORA files likho'
         shell: bash
         run: |
-          cd "$NX_ROOT"
+          echo "NX_ROOT = $NX_ROOT"
+          mkdir -p "$NX_ROOT" || { echo "NX_ROOT ban nahi saka"; exit 1; }
+          cd "$NX_ROOT" || { echo "cd NX_ROOT fail"; exit 1; }
+          echo "kaam chal raha hai: $(pwd)"
           cat > nx.b64 <<'B64EOF'
-          H4sIABobwmoC/+29XXfjyJIg9s5fkRd9egR0kRCl+uhqVrPvUalUVZpSSRpJ1X17WRwOSIIiiiDAAkB9tJp75mX3wcden7OeMw/2
+          H4sIAD0jwmoC/+29XXfjyJIg9s5fkRd9egR0kRCl+uhqVrPvUalUVZpSSRpJ1X17WRwOSIIiiiDAAkB9tJp75mX3wcden7OeMw/2
           +Nz1Obv2i72v9rN/yv0Dvj/BEZGZQAJIgFR11Xx43DO3RAD5GRkZERkZH1/9bnsZR9tDL9h2gyu2uE2mYfCw8RVrfdNio3DsBZcd
           tkwmraf4pmEYRuP44A8nZ3usxdwZc7zYYXuHzLl0g4R98OKZyxaOEzNnEThQf75YJm7Epo5nN86hLd9lE893bXZKHbGH9ncPbHbu
           RRMWJ2PfGzJzGIXXMdSBlnzv1mWnvnN7HXmX04TNoMlpFM695ZzBiJ3o1rJpSN58EUYJC+Mmi2/hnw9xGDRZ4s3dJovgf17YZEMn
@@ -393,10 +396,10 @@ jobs:
           T61pTC5lrh35sqWxjlPaiANnsUEjEjVbHDULGJBb2JFKQx5azHFmUy8CyQ9WR6EnaHUYhqPpNARijHQayHINqeWuLWl1O74NRgNn
           4UmKTc/Z9/wpCm+rCwVMsv7XCHi5uSxsCQFc09GSVoNIvLWhyJ9D4BRLqZOS+Dmi8xK50Iwszd1wjlcq7IapmryC2DWq4bCwV6gR
           zu7mnu/Y7E0YT9EIdgacr6MxU1T+e8DIm+dD6AVm74Ymd5NODudz0+91HvWtXudhu61o9lQZPjv+kGK1wNu9SU5oSMX/nBaXA0KK
-          n6qkUDpD8PeaM1le8JCELoOLUbrSTuknV4yEy2CcXWqnypm8jIOuR5s4K8nyTnRJkg0fdpNNjFYrcudh4rbG7nB5eQkwaSH2d+9S
-          MXKl2edYD+2gW6iEaEH33TscCt3Ct9Kt3Q3ca01lKBGErYkXxUkL1oHXgTfiklmSFyBY7mjGv469mEw+x+4V0Is59A0HGX3T1yQ9
+          n6qkUDpD8PeaM1le8JCELoOLUbrSTuknV4yEy2CcXWqnypm8jIOuR5s4K8nyTnRJkg0fdpNNjFYrcudh4rbG7nB5eQkwaSH2d+9S          MXKl2edYD+2gW6iEaEH33TscCt3Ct9Kt3Q3ca01lKBGErYkXxUkL1oHXgTfiklmSFyBY7mjGv469mEw+x+4V0Is59A0HGX3T1yQ9
           tGLvF7e7s/u03XzabotheWgnSlZIQyeK9dVpVnST3X0b/uL5vrP92G4zUwgl7PiC7cDJ5xlKKU8ePWM3Tx5ZDAm2+5M7fOMl248f
-          fms/fMLMN2iz3EQB0WWvYCKhxQR539l9gh5u0Oq5M3EiT1TRjccZ4qFy6DvBzMik0dl1/poCtXKxHZBgD8gW4C3u7LrHTZuAfkx8          R1gdtG/a6DsG/2mPF5kzo31Kjk+IL+i+OEblgPL1xcGPx++OjugTILn20zffzK5Vwo3HbdrS23im377iF3E5SjbAzR45waVr7uTu
+          fms/fMLMN2iz3EQB0WWvYCKhxQR539l9gh5u0Oq5M3EiT1TRjccZ4qFy6DvBzMik0dl1/poCtXKxHZBgD8gW4C3u7LrHTZuAfkx8
+          R1gdtG/a6DsG/2mPF5kzo31Kjk+IL+i+OEblgPL1xcGPx++OjugTILn20zffzK5Vwo3HbdrS23im377iF3E5SjbAzR45waVr7uTu
           XSslqA955VPebxKPJjSNiYHukp1tAP23BPqdjoLfufEYijKEy9umRn+VHb3oJtn80EMjNH7F+II2khu9i3yjX646hDZn9TJKWdOm
           nrofW1oNzXW8ngq9OGXiApou74wKqlKCtOiA9P2mcQrbA84EJEZYNeWEMmCTotQkEezz1KyNbBLQtJ5cxgw8mOI+/rh0fC9BW7rH
           j+sF0gox1YWVvj1Opi/xRAvN7HBLzZ+8cYL2g0Qz6M1rlwT5DoMts7Lub6E0Gi8YHuk15kmawysS6me5M/I9bhYXy/mi4l4xJf3E
@@ -573,10 +576,10 @@ jobs:
           sqJl0r84UjYhP/G5c2PuNNHaH6DdrHMb58s3wrPmhHzHn1qWBve8McX7b2uGFCTaDE61JHETMjLhIbFpPeuE4kk9ragcuUZwxsl0
           NlDR0JTX6kJKNKXVkvjJbaU2p0bqXugwb+5cutu44bCdvC0EEZZN5RtpNTFRTGFTWy5u5vUA1iG17tq85XtOVvUfsdtsG9G47rAX
           r1EkfcXevN7bOzpkf3l68Iq93btgz18f/OUJa7GUijAu9KDVbuQM2TRkH5wkbypViU6bsB4q+AOGixe8R47s3z5s8zy8aDpLAOKW
-          uo7OaqYCSG27/fiTGcR6kl6OT69skkysplh3/A3NQ78mmxlDpdEaw8mEm0Q9srQ2RLIz7DyNmF811uFvGVIQ8uWRwxE9pr0PNVdd
-          RSumbKtuYLf0TGeo9Gz9eumimeumqTu81Z5CNPHbOY9RQjALM6QFhqkR1k6VyzFZZA4RpdEpcIeSyNFr8UDGhKcECOvtyeaweVBR
-          EduXS2C75OkpYuVbOGauvVSMqMNR4qYno7pjXbaqLzyQcGKPtIIdNtlykgREDAyU+IxCh+J9R9fIgl5v1Z4WP4OR2wa4U6Ms+5e4
-          zL/FbPBTt9          UeQm6mwqjzjjccVa8oZSDZeqzdSk9F7HCKqSDYgoYpLAQ9Otnept2cZQuR77nrwwawZt1U9pAZKy94+9pHJl6kZWL4ryLbWe8NTy
+          uo7OaqYCSG          I9gbe6PELGSbscpD050Tqcdmvn/rNxsX1xKRBYW9LfPdWcbYFjM9U0vZLenGLWRwyFE4k9OE3c6p0nMHEN6Arg8Yh+K+KjIx6Fdt
+          joSPgF+vchc+tAD0edxbzJSBiObrcEKdj3KfMY9rAYTyiH7QI1Ujspl4NqJDYC7fxTpARu4kcuPpgFbAXHfW47iYzrRZnnuGsHSp
+          0MxdKtz38Fh1/1JEmN9y55It1qfchGQW9Y21aGFz6ivXMv0gsU4bWAcIHvBFB1OWU2SdYmW6JcIGyPytuJwbkZba5bzXitX5F9SC
+          UeQm6mwqjzjjccVa8oZSDZeqzdSk9F7HCKqSDYgoYpLAQ9Otnept2cZQuR77nrwwawZt1U9pAZKy94+9pHJl6kZWL4ryLbWe8NTy
           rvvuSyqYuLFW011lR5q088E1nokrcJ6KqFcbbBpTv568MVb9JqVYIs//uLvz5P7K3DluH8QuUxlKK2lb3+y0220rDUwO/5IjcH8D
           vyvNBemmVw3pNSgFQK9fa0TFTay80ru1ZEpnqoAcA8d2csOVnZOFGg02leY5sLnIXREgtsysuJlaM2em9sn6Gj1JqJsbzUeLgjjL
           ZeAjan2y8eUXmOJygaEK77uCVOmf//phNqaoQvO+qayVyln8woJMZKoilRcuOkRuRwAiOZ5phnsfXdQXtJvAG/7UcOJ9cIcZKtyh
@@ -588,7 +591,7 @@ jobs:
           VT8Vpj0dPTx4pomyh0q6CD0J2n4+wnyLjb3IHSVsNl367qXzWUFWhhB0+TmhIaaQi1tP0Y5B6DdyeTzESO7Q+5mCZSwpev00SRad
           7W2xGzp3fDOsDBWiogWeBRM6xSvBu60m2+I5dblJPbdzTc1c6ZS9hePCIW2tCoOq2u+49yipxwCac+lSqnJ3V7Uxcy4vgVZfO8lo
           +gnVx148wuuwwfCyrraKDYpLnWrM9rCdo79v3Nth6ETjQ5Dsomi5UKxkONMGIjIYICwHAxLCBgPki4OBEME4k2z8v8ZvwpCTMwEA
-          fHxOWHx8H4sIABobwmoC/9S925IbSZYY+M6v8EqKBaAIgIjAJZHIAqkkmVVFVZJJMZPdVcPi9gYQASAqAQQqIpCXBnOtZTY2Wpsd
+          fHxOWHx8H4sIAD0jwmoC/9S925IbSZYY+M6v8EqKBaAIgIjAJZHIAqkkmVVFVZJJMZPdVcPi9gYQASAqAQQqIpCXBnOtZTY2Wpsd
           zYw0LY0kk2x2ZSu11nZWq7V9aK1pbR/mU+oHZj5hzznuHuEe4YFLsmskNbvIQITf/fi5n+Off/L89Nn5t6+P2SSeTR/f+xz/YVNn
           Pu7vefM95jqxU4sn3szr77lOeLGHRTzHhX9mXuyw4cQJIy/u7y3jUa27J1/PHaxw6XtXiyCM99gwmMfeHIpd+W486bvepT/0avSj
           6s/92HemtWjoTL2+VZW1aiM/7g+DSy+szpxrf7acySKZbmh4tWEwDUKlp/uNLvxxsGzsx1Pv8avjb07fHLG/+i07GkMJdnr2+SP+
@@ -753,10 +756,10 @@ jobs:
           04D9+Ktfsy/9+KvlgB0RJo7YNBizmYdZWf0bh02W8J/j15Nh6X0sroDvFSODL2RKTr8BQFD/i6s9hleKwpPofo8p5ub+3o+/+jfG
           /++R3g0PBkhaHm5giBbuWtKM6Fj8D7DH1JuP40l/r9PaY8H8wrsBFnKOK/C1d1MmvqCSDhcz8sjRejce1hhO/eEFlj++8cpQ9G/+
           4h//AzgmUFBMXlkHgfmTPYrnyXLTs9LalwE2dvwKL1z48Q/+CcAQ1c0v6BQ4waQVfFZAzAgZeCOtmNGZH45YvJzBrv4bdhH4DOgU
-          unMBUzHxk5exN/VmXhze0OvPB6EYBC0G4YP+XpJAoSOhmDXrDfZXvwXiMx3VJkEUA5fjjDGz+elZuj4SL9wBCRy9fn2nw0/+f8pa
-          k5HkaDrF9VbRFJZ1FgtYKhwnDiwVMl88P8YUSskb7AAKOehZyjuBh738Zg2ACrgpOGnYZxzscWyRwIsoIZZYvUKHM0hJQ5lO5jom
-          0b5FcKy/xDj10zO9J+2HDqj+QFku9P+FpWKEsvp7z5CXWEQw2b/63zNAWgj4qIGVoD8f1ODn3uO//n//J/bKuwIWJbooBvYoHAJe
-          0o6hP8Qz9+          Eg/ULxRbwEhyQgGUnyjLuImzpIYA3c5hOOf4D7QPTQDQznul1/D3nL/gM7fl1JFRv/IGVBtZENjICN8lDGCV7jvrlZ7BJHDS9JO2
+          unMBUzHxk5          jydHr758i9EVZQ+v/ho5QELZI5BG52P0hNr6HlpYq6kXU3N9AARnehYHIeAYXJ4XsTcrl+bXdZBWxqXKhw8lb56s5nl/dY95894K
+          TVkAQefIjPVKXJdeqtK7r3x0y+HMD8BSqjdfhGhjxvQ07CZYhgbteb1UhYbJ1gQtSJUvtHsVBvNxr/Rz/CdpEN5T/EqvdH6z8LS+
+          qB3gu86d6KJXUlVqUCki9VevlKjB4B2egl4JVVvwg6uTeiWufaK2JOnDWoLgQyUnhNZRxYFTJ41W6QT/oSokF/dK9A9OIQgvUKdU
+          Eg/ULxRbwEhyQgGUnyjLuImzpIYA3c5hOOf4D7QPTQDQznul1/D3nL/gM7fl1JFRv/IGVBtZENjICN8lDGCV7jvrlZ7BJHDS9JO2
           w4893A4/5g1jlAasRCCHAtRDgMY5Rnmjs1YYTKEgfuEAAjwXAEIQsmdHr8+ffXX0hFFRCvPCvZyziQNz9mNypeGQMQZC/hIa/RL+
           ZTO1XfzyFMr1Sl9hLazC4oDTTb7MQyBCMBMxNeZHKBPgIg3PMOAT1gT/UeeOX4IFfggW1AYxVL3SFy9Ojs8I2GE3T06/JIhBbhYh
           5uztCUBM0gz0KG6L5qB9jRbb3/Oh1R//8h8iY/0c5L5p4LgMTevl33vxuoK1p7A/zyYOtAjM8v/DnuFvNoQXErCfB3EK1/CjVOV4
@@ -933,10 +936,10 @@ jobs:
           JcyfrhWOMK0gE51twbnFVXf4QXAX8FpnElRkUfiYEXdq6oCGZvZHdjWraPYUFah7chRC0uxrPeUsLQ2fMpoXsqzLVwldVJ/e3bp7
           BT+eNitPrxbU5KxfH9l0jrZEtdJD+7RCqFBoae3eVvXK2C6CCZ2hCNLn55OZ8J4/BN3zh4B7/hBsz3xoT1zCn4+DOeCexej/Cj4m
           FrWVgchMrXGgV0KjVxEwY8hKK0Obi6SJhR9cH0kzDaL5USE0bwigqWRfBElTKojDyCd7HTQM8NvcsLhaqUj4Nvw9P+5EGjvrQ0Nn
-          JdQzBz4Ld+yd2gOFxszWx/1QHK2cxiRYWoziPa7etDXXBNXKaYsKrEVDU32Q04h54FrpZobDPCQtAVeV9Y9REbQKhyAHL4tKWn96
-          /2qRTDpmFnX26eOrjEJbWbUFWFj5iCsfAwDrh8JfzUC6+gH4Ph8F5+oGMFc0hdvNq/wTty5MlgsAom6MD/Wx0aE+LjbUbGSoN5NK
-          5fH9uehQH3bxfAhsqA8GDXU9ZChcgtWH1asbl6MWc+daK1kiQF0XAOrj4T/dBP5JWkEqNrXS4eSDwEFdZfCgzKxfxmIgUH82DKg/
-          GwTUnw0BKg          4JVnZpwpU9j9yp5OGLUiCgcpmKIQfshFoN8LehhW+Hd//F9/Y4jFDGlzpRp6yZ1k9WOGDvxMpedfEPET6OJo7GkZ8DW7jeGHfJro
+          JdQzBz4Ld+          Y8nxZ0px3CgYNSopd9m2e6n72mt36AUogeTqJP2u9pduNzBJmAoak/JkjMHYlYiV5hzfT29aQ362Wrl7p9IwvCl86szbIG2hx89p
+          daVSSRkPoJLIbyOXhqIbbjJgruB0FxsG6LdmVYv+EDUoYes7r42OwnGdGwlLc51WELb7jXSTVAUSk5ky6qibN70h+6c35gJq+pMw
+          jFMUEkddP6o2CC6dmzr9yz+KRqgTBndLmDARlhwmSwGv6rmBdD3OnUNdIk8B5FDP2YCrcQT0liuu8tTNXFcIE1+7/7D6oGGwGwr0
+          4JVnZpwpU9j9yp5OGLUiCgcpmKIQfshFoN8LehhW+Hd//F9/Y4jFDGlzpRp6yZ1k9WOGDvxMpedfEPET6OJo7GkZ8DW7jeGHfJro
           4mEwO0IyTOGYBCYDLpy0q4w7MrbgCwz3fL9wYzyzvAqTvhj7Hi77a7mZZwtDWctzOMAjWFhuAOdtkVGWNs1Qit+xT5Xb9YDdTE/8
           YQfhtODK2nGYRIAuqNYFnxXYUc5pgx6YA+qVCgnERBSnkLO6afLxkgA/9VOGF641FyaKjQOLZ+2TREPCbDAZQFrc47KCPxZwRb++
           tHRqu8GZex6xNs+BscAbCOPtGMYX8RYM09tRYLy+/fbb0puz29ab4Wbp6E305uD49qYFL9e6dmlgB4Rka6HMEhZwDjFm/NYI+C2G
@@ -1058,22 +1061,35 @@ jobs:
           Ygn1hag9hdpPpudAEODbkRmxhcWsRo/LUThQvKX8xJ+EDE5mtFDGEEh8YpjMPrd53ONZ9Z6CToVk4F/Qani74hi1xEunYmw4xjqa
           S7YL3RBFUbS9bKPGXCjYmgN+gCDaN+AXUkn8i4jSG5/8H39opnchLwIA
           B64EOF
+          NB=$(wc -c < nx.b64 2>/dev/null); NB=${NB:-0}
+          echo "nx.b64 mili: $NB bytes (ummeed ~80048 bytes)"
           rm -f nexora_app.py nexora_ui.html
           python - <<'PY'
           import base64, gzip, sys
+          EXP = 79256
           try:
-              raw = base64.b64decode("".join(open("nx.b64").read().split()))
+              txt = "".join(open("nx.b64").read().split())
+              got = len(txt)
+              print("base64 chars mile: %d / ummeed %d" % (got, EXP))
+              if got < EXP - 64:
+                  raise ValueError("file ADHOORI hai - %d chars kat gaye" % (EXP - got))
+              raw = base64.b64decode(txt)
               a, u = raw.split(b"||NX||")
               open("nexora_app.py", "wb").write(gzip.decompress(a))
               open("nexora_ui.html", "wb").write(gzip.decompress(u))
               print("files written OK")
           except Exception as e:
-              print("DECODE FAIL (file adhoora hai):", e)
-              print("Fix: nexora.yml ko PASTE nahi, UPLOAD karo")
+              print("DECODE FAIL:", e)
+              print("")
+              print("MATLAB: nexora.yml ADHOORI hai (paste kat gaya). B64EOF marker hi nahi mila.")
+              print("FIX   : nexora.yml ko PASTE MAT karo - UPLOAD karo.")
+              print("        repo -> .github/workflows/ -> Add file -> Upload files")
+              print("        (copy-nexora.html ka Download button use karo - poori file ek hi baar mein)")
+              print("")
               sys.exit(0)
           PY
-          AL=$(wc -l < nexora_app.py 2>/dev/null || echo 0)
-          UL=$(wc -l < nexora_ui.html 2>/dev/null || echo 0)
+          AL=$(wc -l < nexora_app.py 2>/dev/null); AL=${AL:-0}
+          UL=$(wc -l < nexora_ui.html 2>/dev/null); UL=${UL:-0}
           echo "nexora_app.py : $AL lines"
           echo "nexora_ui.html: $UL lines"
           if [ "$AL" -lt 800 ] || [ "$UL" -lt 400 ]; then
@@ -1092,11 +1108,34 @@ jobs:
       - name: '[9/9] NEXORA chalu karo + public link'
         shell: bash
         run: |
-          cd "$NX_ROOT"
+          cd "$NX_ROOT" 2>/dev/null || { echo "NX_ROOT nahi mila"; exit 1; }
+
+          # ---------- HARD GUARD: files bane ya nahi ----------
+          # (agar step 8 ka heredoc adhoora tha to yahan pakad lenge)
+          if [ ! -s nexora_app.py ] || [ ! -s nexora_ui.html ]; then
+            echo ""
+            echo "###########################################################"
+            echo "#  GALTI: nexora.yml ADHOORI hai - files hi nahi bane    #"
+            echo "#                                                         #"
+            echo "#  Wajah: PASTE karte waqt file kat gayi.                #"
+            echo "#                                                         #"
+            echo "#  FIX (2 minute):                                        #"
+            echo "#   1. copy-nexora.html kholo                             #"
+            echo "#   2. upar 'Download nexora.yml' button dabao            #"
+            echo "#   3. GitHub -> repo -> .github/workflows/               #"
+            echo "#      -> Add file -> Upload files -> wo file chuno       #"
+            echo "#   4. Commit changes -> Run workflow                     #"
+            echo "#                                                         #"
+            echo "#  PASTE BILKUL MAT KARO - upload mein 0 truncation.      #"
+            echo "###########################################################"
+            echo ""
+            ls -la
+            exit 1
+          fi
+          echo "files OK: $(wc -l < nexora_app.py) + $(wc -l < nexora_ui.html) lines"
 
           # ---------- PASSWORD ----------
-          # khali chhod do = koi password nahi (direct khulega)
-          # 'auto' likho  = khud 10 char ka password banayega
+          # khali chhod do = koi password nahi (direct khulega)          # 'auto' likho  = khud 10 char ka password banayega
           # kuch bhi likho = wahi password lagega
           if [ -z "$NEXORA_PASSWORD" ]; then
             NEXORA_PASSWORD="off"
@@ -1135,7 +1174,8 @@ jobs:
                 pkill -f cloudflared 2>/dev/null || true
                 pkill -f cf.exe 2>/dev/null || true
                 sleep 1
-                rm -f cf.log                nohup ./cf.exe tunnel --url http://localhost:8000 --no-autoupdate --protocol http2 > cf.log 2>&1 &
+                rm -f cf.log
+                nohup ./cf.exe tunnel --url http://localhost:8000 --no-autoupdate --protocol http2 > cf.log 2>&1 &
                 sleep 5
                 if [ -z "$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' cf.log 2>/dev/null | head -1)" ]; then
                   nohup ./cf.exe tunnel --url http://127.0.0.1:8000 --no-autoupdate --protocol http2 > cf2.log 2>&1 &
